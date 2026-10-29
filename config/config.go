@@ -1086,7 +1086,7 @@ func parseRuleProviders(cfg *RawConfig) (ruleProviders map[string]P.RuleProvider
 // injectAtrustProviders adds the internal providers aTrust rules reference.
 // It runs after user providers are parsed and before rules and DNS, which is
 // the only window where RULE-SET and rule-set: nameserver-policy resolve.
-func injectAtrustProviders(proxies map[string]C.Proxy, ruleProviders map[string]P.RuleProvider) error {
+func injectAtrustProviders(proxies map[string]C.Proxy, providers map[string]P.RuleProvider) error {
 	var names []string
 	for name, proxy := range proxies {
 		if proxy.Type() == C.Atrust {
@@ -1100,13 +1100,13 @@ func injectAtrustProviders(proxies map[string]C.Proxy, ruleProviders map[string]
 		return fmt.Errorf("aTrust supports one node per configuration, found %d: %v", len(names), names)
 	}
 	for _, reserved := range []string{"atrust-domain", "atrust-ip"} {
-		if _, exists := ruleProviders[reserved]; exists {
+		if _, exists := providers[reserved]; exists {
 			return fmt.Errorf("rule provider %q is reserved for aTrust; rename the user-defined provider", reserved)
 		}
 	}
-	providers := RP.NewAtrustRuleProviders(names[0])
-	ruleProviders["atrust-domain"] = providers.Domain
-	ruleProviders["atrust-ip"] = providers.IP
+	atrustProviders := RP.NewAtrustRuleProviders(names[0])
+	providers["atrust-domain"] = atrustProviders.Domain
+	providers["atrust-ip"] = atrustProviders.IP
 	return nil
 }
 
