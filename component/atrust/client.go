@@ -21,6 +21,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/metacubex/mihomo/log"
+
 	D "github.com/miekg/dns"
 )
 
@@ -781,6 +783,7 @@ func (c *Client) resolveTarget(ctx context.Context, host string, ip netip.Addr, 
 				return Target{}, fmt.Errorf("aTrust resource %s has no resolvable IP", host)
 			}
 			target.IP = ip
+			log.Debugln("[Atrust] target domain=%s ip=%s appID=%s group=%s preferL3=%t pretend=%t", target.Host, target.IP, target.AppID, target.NodeGroupID, target.PreferL3, target.AddrPretend)
 			return target, nil
 		}
 	}
@@ -798,6 +801,7 @@ func (c *Client) resolveTarget(ctx context.Context, host string, ip netip.Addr, 
 		target.AppID = resource.AppID
 		target.NodeGroupID = resource.NodeGroupID
 		target.PreferL3 = resource.EnableTCPPrefL3
+		log.Debugln("[Atrust] target ip=%s appID=%s group=%s preferL3=%t range=%s-%s", ip, target.AppID, target.NodeGroupID, target.PreferL3, resource.IPMin, resource.IPMax)
 		return target, nil
 	}
 	return Target{}, &ResourceDeniedError{Host: hostOrIP(host, ip), Port: port, Protocol: protocol}

@@ -18,6 +18,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/metacubex/mihomo/log"
 )
 
 type tcpTunnel struct {
@@ -148,12 +150,16 @@ func (t *tcpTunnel) handshake(ctx context.Context, conn *tls.Conn, target Target
 	realHost := target.IP.String()
 	destAddr := net.JoinHostPort(realHost, strconv.Itoa(target.Port))
 	destIP := ""
+	destinationHost := realHost
 	if target.Host != "" {
 		destAddr = net.JoinHostPort(target.Host, strconv.Itoa(target.Port))
-		if !target.AddrPretend {
+		if target.AddrPretend {
+			destinationHost = target.Host
+		} else {
 			destIP = realHost
 		}
 	}
+	log.Debugln("[Atrust] TCP tunnel appID=%s destAddr=%s destIP=%s host=%s ip=%s", target.AppID, destAddr, destIP, target.Host, target.IP)
 	procName := "google-chrome-stable"
 	procPath := "/usr/bin/google-chrome-stable"
 	if target.Port == 22 {
@@ -200,7 +206,7 @@ func (t *tcpTunnel) handshake(ctx context.Context, conn *tls.Conn, target Target
 	initMessage = append(initMessage, 0x05, 0x01, 0x81, 0x53, 0x03)
 	initMessage = binary.BigEndian.AppendUint16(initMessage, uint16(len(signed)))
 	initMessage = append(initMessage, signed...)
-	destMessage, err := encodeTCPDestination(realHost, target.Port, t.zeroRTT)
+	destMessage, err := encodeTCPDestination(destinationHost, target.Port, t.zeroRTT)
 	if err != nil {
 		return nil, err
 	}

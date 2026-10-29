@@ -245,6 +245,37 @@ func TestResourceMatching(t *testing.T) {
 	}
 }
 
+func TestMatchIPPrefersLastExactResource(t *testing.T) {
+	resource := map[string]any{
+		"code": 0,
+		"data": map[string]any{"appList": map[string]any{"data": map[string]any{
+			"appInfo": []any{map[string]any{"apps": []any{
+				map[string]any{
+					"id": "domain-app", "accessModel": "L3VPN",
+					"addressList": []any{map[string]any{"protocol": "tcp", "port": "80", "host": "www.example.com", "ip": []string{"10.1.2.3"}}},
+				},
+				map[string]any{
+					"id": "ip-app", "accessModel": "L3VPN",
+					"addressList": []any{map[string]any{"protocol": "tcp", "port": "80", "host": "10.1.2.3"}},
+				},
+			}}},
+			"config": map[string]any{"nodeGroupConf": map[string]any{"majorNodeGroup": map[string]any{"id": "group"}}},
+		}}},
+	}
+	data, err := json.Marshal(resource)
+	if err != nil {
+		t.Fatal(err)
+	}
+	index, err := parseResource(data, "vpn.example.com")
+	if err != nil {
+		t.Fatal(err)
+	}
+	matched, ok := index.matchIP(netip.MustParseAddr("10.1.2.3"), 80, "tcp")
+	if !ok || matched.AppID != "ip-app" {
+		t.Fatalf("matched %+v, want the later exact IP resource", matched)
+	}
+}
+
 func TestFakeServerLogin(t *testing.T) {
 	key, err := rsa.GenerateKey(rand.Reader, 2048)
 	if err != nil {

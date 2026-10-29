@@ -1,6 +1,7 @@
 package atrust
 
 import (
+	"encoding/binary"
 	"encoding/json"
 	"fmt"
 	"net/netip"
@@ -394,6 +395,7 @@ func (r *resourceIndex) matchIP(ip netip.Addr, port int, protocol string) (IPRes
 	ip = ip.Unmap()
 	var best IPResource
 	found := false
+	bestSpan := ^uint64(0)
 	for _, resource := range r.ipResources {
 		if ip.Compare(resource.IPMin) < 0 || ip.Compare(resource.IPMax) > 0 {
 			continue
@@ -401,23 +403,22 @@ func (r *resourceIndex) matchIP(ip netip.Addr, port int, protocol string) (IPRes
 		if !portMatches(resource.PortMin, resource.PortMax, port) || !protocolMatches(resource.Protocol, protocol) {
 			continue
 		}
-		if !found || prefixLen(resource) > prefixLen(best) {
+		span := ipRangeSpan(resource)
+		if !found || span <= bestSpan {
 			best = resource
+			bestSpan = span
 			found = true
 		}
 	}
 	return best, found
 }
 
-func prefixLen(resource IPResource) int {
-	if resource.IPMin == resource.IPMax {
-		return 32
-	}
-	prefixes := rangeToPrefixes(resource.IPMin, resource.IPMax)
-	if len(prefixes) == 0 {
-		return 0
-	}
-	return prefixes[0].Bits()
+func ipRangeSpan(resource IPResource) uint64 {
+	minBytes := resource.IPMin.As4()
+	maxBytes := resource.IPMax.As4()
+	minAddr := binary.BigEndian.Uint32(minBytes[:])
+	maxAddr := binary.BigEndian.Uint32(maxBytes[:])
+	return uint64(maxAddr - minAddr)
 }
 
 func portMatches(minPort, maxPort, port int) bool {

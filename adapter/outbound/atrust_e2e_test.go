@@ -4,6 +4,7 @@ package outbound_test
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"crypto/tls"
 	"encoding/binary"
@@ -836,5 +837,61 @@ func TestAtrustFakeIPE2E(t *testing.T) {
 		t.Fatalf("TLS through fake-ip: %v", err)
 	}
 	t.Logf("fake-ip TLS -> version 0x%04x", tlsConn.ConnectionState().Version)
+	_ = tlsConn.Close()
+}
+
+func TestAtrustTCPTunnelE2E(t *testing.T) {
+	if os.Getenv("ATRUST_E2E_TCP") != "1" {
+		t.Skip("set ATRUST_E2E_TCP=1 to run the TCP-tunnel test")
+	}
+	server, username, password, stateDir := liveCredentials(t)
+	home := t.TempDir()
+	C.SetHomeDir(home)
+	copyState(t, stateDir, filepath.Join(home, "atrust"))
+	mixedPort := freePort(t)
+	socksPort := freePort(t)
+	dnsPort := freePort(t)
+	config := bytes.Replace(atrustConfig(mixedPort, dnsPort, server, username, password), []byte("tunnel: l3"), []byte("tunnel: tcp"), 1)
+	if err := hub.Parse(config); err != nil {
+		t.Fatal(err)
+	}
+	listener.SetBindAddress("127.0.0.1")
+	inbound.SetAllowedIPs([]netip.Prefix{netip.MustParsePrefix("0.0.0.0/0"), netip.MustParsePrefix("::/0")})
+	inbound.SetDisAllowedIPs(nil)
+	listener.ReCreateMixed(mixedPort, tunnel.Tunnel)
+	listener.ReCreateSocks(socksPort, tunnel.Tunnel)
+	waitPort(t, net.JoinHostPort("127.0.0.1", strconv.Itoa(socksPort)))
+	provider, ok := atrust.ProviderByName("atrust")
+	if !ok {
+		t.Fatal("aTrust provider was not registered")
+	}
+	session := provider.NewLoginSession(10*time.Minute, 5)
+	session.Start()
+	select {
+	case <-session.Done():
+	case <-time.After(30 * time.Second):
+		t.Fatal("aTrust login timed out")
+	}
+	state, _, _, loginErr, _ := session.Snapshot()
+	if state != "succeeded" {
+		t.Fatalf("aTrust login state %s: %v", state, loginErr)
+	}
+
+	conn := socksTCPConnect(t, socksPort, netip.MustParseAddr("10.10.98.98"), 80)
+	_ = conn.SetDeadline(time.Now().Add(10 * time.Second))
+	_, _ = fmt.Fprintf(conn, "GET / HTTP/1.1\r\nHost: 10.10.98.98\r\nConnection: close\r\n\r\n")
+	status, err := bufio.NewReader(conn).ReadString('\n')
+	_ = conn.Close()
+	if err != nil || !strings.HasPrefix(status, "HTTP/") {
+		t.Fatalf("TCP tunnel CC98: status=%q err=%v", status, err)
+	}
+	t.Logf("TCP tunnel CC98 -> %s", strings.TrimSpace(status))
+
+	domainConn := socksTCPConnectHost(t, socksPort, "www.zju.edu.cn", 443)
+	tlsConn := tls.Client(domainConn, &tls.Config{ServerName: "www.zju.edu.cn", InsecureSkipVerify: true})
+	if err := tlsConn.HandshakeContext(context.Background()); err != nil {
+		t.Fatalf("TCP tunnel domain TLS: %v", err)
+	}
+	t.Logf("TCP tunnel www.zju.edu.cn -> version 0x%04x", tlsConn.ConnectionState().Version)
 	_ = tlsConn.Close()
 }
