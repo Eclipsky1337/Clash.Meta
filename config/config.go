@@ -118,6 +118,13 @@ type Cors struct {
 	AllowPrivateNetwork bool
 }
 
+// Auth config controls the loopback aTrust login page and API.
+type Auth struct {
+	Listen      string
+	SessionTTL  int
+	MaxAttempts int
+}
+
 // Experimental config
 type Experimental struct {
 	QUICGoDisableGSO bool
@@ -195,6 +202,7 @@ type TLS struct {
 type Config struct {
 	General       *General
 	Controller    *Controller
+	Auth          *Auth
 	Experimental  *Experimental
 	IPTables      *IPTables
 	NTP           *NTP
@@ -211,6 +219,12 @@ type Config struct {
 	Tunnels       []LC.Tunnel
 	Sniffer       *sniffer.Config
 	TLS           *TLS
+}
+
+type RawAuth struct {
+	Listen      string `yaml:"listen" json:"listen"`
+	SessionTTL  int    `yaml:"session-ttl" json:"session-ttl"`
+	MaxAttempts int    `yaml:"max-attempts" json:"max-attempts"`
 }
 
 type RawCors struct {
@@ -427,6 +441,7 @@ type RawConfig struct {
 	ExternalControllerUnix        string                  `yaml:"external-controller-unix" json:"external-controller-unix"`
 	ExternalControllerTLS         string                  `yaml:"external-controller-tls" json:"external-controller-tls"`
 	ExternalControllerCors        RawCors                 `yaml:"external-controller-cors" json:"external-controller-cors"`
+	Auth                          RawAuth                 `yaml:"auth" json:"auth"`
 	ExternalUI                    string                  `yaml:"external-ui" json:"external-ui"`
 	ExternalUIURL                 string                  `yaml:"external-ui-url" json:"external-ui-url"`
 	ExternalUIName                string                  `yaml:"external-ui-name" json:"external-ui-name"`
@@ -645,6 +660,12 @@ func ParseRawConfig(rawCfg *RawConfig) (*Config, error) {
 	}
 	config.Controller = controller
 
+	authCfg, err := parseAuth(rawCfg)
+	if err != nil {
+		return nil, err
+	}
+	config.Auth = authCfg
+
 	experimental, err := parseExperimental(rawCfg)
 	if err != nil {
 		return nil, err
@@ -695,6 +716,10 @@ func ParseRawConfig(rawCfg *RawConfig) (*Config, error) {
 		return nil, err
 	}
 	config.RuleProviders = ruleProviders
+
+	if err := injectAtrustProviders(proxies, ruleProviders); err != nil {
+		return nil, err
+	}
 
 	subRules, err := parseSubRules(rawCfg, proxies, ruleProviders)
 	if err != nil {
@@ -804,6 +829,31 @@ func parseGeneral(cfg *RawConfig) (*General, error) {
 		KeepAliveInterval: cfg.KeepAliveInterval,
 		DisableKeepAlive:  cfg.DisableKeepAlive,
 	}, nil
+}
+
+func parseAuth(cfg *RawConfig) (*Auth, error) {
+	auth := &Auth{
+		Listen:      cfg.Auth.Listen,
+		SessionTTL:  cfg.Auth.SessionTTL,
+		MaxAttempts: cfg.Auth.MaxAttempts,
+	}
+	if auth.Listen == "" {
+		auth.Listen = "127.0.0.1:0"
+	}
+	if auth.SessionTTL <= 0 {
+		auth.SessionTTL = 600
+	}
+	if auth.MaxAttempts <= 0 {
+		auth.MaxAttempts = 5
+	}
+	host, _, err := net.SplitHostPort(auth.Listen)
+	if err != nil {
+		return nil, fmt.Errorf("auth.listen %q: %w", auth.Listen, err)
+	}
+	if host != "" && host != "127.0.0.1" && host != "::1" && host != "localhost" {
+		return nil, fmt.Errorf("auth.listen must bind loopback, got %q", auth.Listen)
+	}
+	return auth, nil
 }
 
 func parseController(cfg *RawConfig) (*Controller, error) {
@@ -1033,6 +1083,33 @@ func parseRuleProviders(cfg *RawConfig) (ruleProviders map[string]P.RuleProvider
 	return
 }
 
+// injectAtrustProviders adds the internal providers aTrust rules reference.
+// It runs after user providers are parsed and before rules and DNS, which is
+// the only window where RULE-SET and rule-set: nameserver-policy resolve.
+func injectAtrustProviders(proxies map[string]C.Proxy, ruleProviders map[string]P.RuleProvider) error {
+	var names []string
+	for name, proxy := range proxies {
+		if proxy.Type() == C.Atrust {
+			names = append(names, name)
+		}
+	}
+	if len(names) == 0 {
+		return nil
+	}
+	if len(names) > 1 {
+		return fmt.Errorf("aTrust supports one node per configuration, found %d: %v", len(names), names)
+	}
+	for _, reserved := range []string{"atrust-domain", "atrust-ip"} {
+		if _, exists := ruleProviders[reserved]; exists {
+			return fmt.Errorf("rule provider %q is reserved for aTrust; rename the user-defined provider", reserved)
+		}
+	}
+	providers, _ := RP.NewAtrustRuleProviders(names[0])
+	ruleProviders["atrust-domain"] = providers.Domain
+	ruleProviders["atrust-ip"] = providers.IP
+	return nil
+}
+
 func parseSubRules(cfg *RawConfig, proxies map[string]C.Proxy, ruleProviders map[string]P.RuleProvider) (subRules map[string][]C.Rule, err error) {
 	subRules = map[string][]C.Rule{}
 	for name := range cfg.SubRules {
@@ -1260,6 +1337,12 @@ func parseNameServer(servers []string, respectRules bool, preferH3 bool) ([]dns.
 			dnsNetType = "easytier" // EasyTier overlay DNS via proxy name
 			if addr == "" {
 				err = errors.New("missing EasyTier proxy name")
+			}
+		case "atrust":
+			addr = u.Host
+			dnsNetType = "atrust" // aTrust private DNS via proxy name
+			if addr == "" {
+				err = errors.New("missing aTrust proxy name")
 			}
 		case "dhcp":
 			addr = server[len("dhcp://"):] // some special notation cannot be parsed by url

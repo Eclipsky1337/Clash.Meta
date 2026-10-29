@@ -54,6 +54,7 @@ const (
 	Tailscale
 	ZeroTier
 	EasyTier
+	Atrust
 	GostRelay
 )
 
@@ -241,6 +242,8 @@ func (at AdapterType) String() string {
 		return "ZeroTier"
 	case EasyTier:
 		return "EasyTier"
+	case Atrust:
+		return "Atrust"
 	case GostRelay:
 		return "GostRelay"
 	case Relay:

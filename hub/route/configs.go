@@ -1,6 +1,7 @@
 package route
 
 import (
+	"encoding/json"
 	"net/netip"
 	"path/filepath"
 
@@ -11,6 +12,7 @@ import (
 	"github.com/metacubex/mihomo/component/updater"
 	"github.com/metacubex/mihomo/config"
 	C "github.com/metacubex/mihomo/constant"
+	"github.com/metacubex/mihomo/hub/auth"
 	"github.com/metacubex/mihomo/hub/executor"
 	"github.com/metacubex/mihomo/listener"
 	LC "github.com/metacubex/mihomo/listener/config"
@@ -133,7 +135,18 @@ type tuicServerSchema struct {
 
 func getConfigs(w http.ResponseWriter, r *http.Request) {
 	general := executor.GetGeneral()
-	render.JSON(w, r, general)
+	data, err := json.Marshal(general)
+	if err != nil {
+		render.JSON(w, r, general)
+		return
+	}
+	payload := map[string]any{}
+	if err := json.Unmarshal(data, &payload); err != nil {
+		render.JSON(w, r, general)
+		return
+	}
+	payload["auth"] = map[string]any{"listen": auth.Listen()}
+	render.JSON(w, r, payload)
 }
 
 func pointerOrDefault[T any](p *T, def T) T {

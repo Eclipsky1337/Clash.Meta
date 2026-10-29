@@ -2,6 +2,8 @@ package hub
 
 import (
 	"github.com/metacubex/mihomo/config"
+	C "github.com/metacubex/mihomo/constant"
+	"github.com/metacubex/mihomo/hub/auth"
 	"github.com/metacubex/mihomo/hub/executor"
 	"github.com/metacubex/mihomo/hub/route"
 	"github.com/metacubex/mihomo/log"
@@ -58,6 +60,22 @@ func ApplyConfig(cfg *config.Config) {
 }
 
 func applyRoute(cfg *config.Config) {
+	hasAtrust := false
+	for _, proxy := range cfg.Proxies {
+		if proxy.Type() == C.Atrust {
+			hasAtrust = true
+			break
+		}
+	}
+	if !hasAtrust {
+		auth.Stop()
+	} else {
+		auth.ReCreateServer(auth.Config{
+			Listen:      cfg.Auth.Listen,
+			SessionTTL:  cfg.Auth.SessionTTL,
+			MaxAttempts: cfg.Auth.MaxAttempts,
+		})
+	}
 	if cfg.Controller.ExternalUI != "" {
 		route.SetUIPath(cfg.Controller.ExternalUI)
 	}
