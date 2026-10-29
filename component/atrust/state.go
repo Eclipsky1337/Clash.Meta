@@ -26,7 +26,6 @@ type persistedState struct {
 	Username       string          `json:"username,omitempty"`
 	ServerManifest json.RawMessage `json:"server_manifest,omitempty"`
 	Resources      json.RawMessage `json:"resources,omitempty"`
-	VIP            string          `json:"vip,omitempty"`
 	UpdatedAt      time.Time       `json:"updated_at"`
 }
 

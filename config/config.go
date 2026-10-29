@@ -1104,7 +1104,7 @@ func injectAtrustProviders(proxies map[string]C.Proxy, ruleProviders map[string]
 			return fmt.Errorf("rule provider %q is reserved for aTrust; rename the user-defined provider", reserved)
 		}
 	}
-	providers, _ := RP.NewAtrustRuleProviders(names[0])
+	providers := RP.NewAtrustRuleProviders(names[0])
 	ruleProviders["atrust-domain"] = providers.Domain
 	ruleProviders["atrust-ip"] = providers.IP
 	return nil

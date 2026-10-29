@@ -103,19 +103,19 @@ func dialTunnelTLS(ctx context.Context, options Options, address string) (*tls.C
 }
 
 type tcpAuthRequest struct {
-	SID           string       `json:"sid"`
-	AppID         string       `json:"appId"`
-	URL           string       `json:"url"`
-	DeviceID      string       `json:"deviceId"`
-	ConnectionID  string       `json:"connectionId"`
-	ProcHash      string       `json:"procHash"`
-	UserName      string       `json:"userName"`
-	RCAppliedInfo int          `json:"rcAppliedInfo"`
-	Lang          string       `json:"lang"`
-	DestAddr      string       `json:"destAddr"`
-	DestIP        string       `json:"destIP,omitempty"`
-	Env           tcpTunnelEnv `json:"env"`
-	XRequestSig   string       `json:"xRequestSig"`
+	SessionID        string       `json:"sid"`
+	ApplicationID    string       `json:"appId"`
+	Endpoint         string       `json:"url"`
+	Device           string       `json:"deviceId"`
+	Connection       string       `json:"connectionId"`
+	ProcessHash      string       `json:"procHash"`
+	User             string       `json:"userName"`
+	RCApplied        int          `json:"rcAppliedInfo"`
+	Language         string       `json:"lang"`
+	Destination      string       `json:"destAddr"`
+	DestinationIP    string       `json:"destIP,omitempty"`
+	Environment      tcpTunnelEnv `json:"env"`
+	RequestSignature string       `json:"xRequestSig"`
 }
 
 type tcpTunnelEnv struct {
@@ -168,18 +168,18 @@ func (t *tcpTunnel) handshake(ctx context.Context, conn *tls.Conn, target Target
 	}
 	fingerprint := strings.ToUpper(fmt.Sprintf("%X", sha256.Sum256([]byte(procPath))))
 	request := tcpAuthRequest{
-		SID:          state.SID,
-		AppID:        target.AppID,
-		URL:          "tcp://" + destAddr,
-		DeviceID:     state.DeviceID,
-		ConnectionID: state.ConnectionID,
-		ProcHash:     fingerprint,
-		UserName:     state.Username,
-		Lang:         "en-US",
-		DestAddr:     destAddr,
-		DestIP:       destIP,
+		SessionID:     state.SID,
+		ApplicationID: target.AppID,
+		Endpoint:      "tcp://" + destAddr,
+		Device:        state.DeviceID,
+		Connection:    state.ConnectionID,
+		ProcessHash:   fingerprint,
+		User:          state.Username,
+		Language:      "en-US",
+		Destination:   destAddr,
+		DestinationIP: destIP,
 	}
-	request.Env.Application.Runtime.Process = tcpProcess{
+	request.Environment.Application.Runtime.Process = tcpProcess{
 		Name:             procName,
 		DigitalSignature: "TrustAppClosed",
 		Platform:         "Linux",
@@ -189,12 +189,12 @@ func (t *tcpTunnel) handshake(ctx context.Context, conn *tls.Conn, target Target
 		Version:          "TrustAppClosed",
 		SecurityEnv:      "normal",
 	}
-	request.Env.Application.Runtime.ProcessTrusted = "TRUSTED"
+	request.Environment.Application.Runtime.ProcessTrusted = "TRUSTED"
 	unsigned, err := json.Marshal(request)
 	if err != nil {
 		return nil, err
 	}
-	request.XRequestSig = hmacSignature(signKey, unsigned)
+	request.RequestSignature = hmacSignature(signKey, unsigned)
 	signed, err := json.Marshal(request)
 	if err != nil {
 		return nil, err

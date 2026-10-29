@@ -20,8 +20,6 @@ const (
 	ChallengeSMS         ChallengeType = "sms"
 	ChallengeRadius      ChallengeType = "radius"
 	ChallengeConfirm     ChallengeType = "confirm"
-	ChallengeCAS         ChallengeType = "cas"
-	ChallengeOAuth       ChallengeType = "oauth"
 )
 
 // Field describes one input on a challenge. Type is one of text, password,
@@ -44,7 +42,6 @@ type Challenge struct {
 	Description string        `json:"description,omitempty"`
 	Image       []byte        `json:"-"`
 	ImageType   string        `json:"image_type,omitempty"`
-	URL         string        `json:"url,omitempty"`
 	Phone       string        `json:"phone,omitempty"`
 	Fields      []Field       `json:"fields,omitempty"`
 }
@@ -226,12 +223,6 @@ func (s *LoginSession) notify() {
 	case s.events <- struct{}{}:
 	default:
 	}
-}
-
-func (s *LoginSession) expired(now time.Time) bool {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	return now.After(s.ExpiresAt) && s.state != sessionDone && s.state != sessionFailed && s.state != sessionCancelled
 }
 
 func graphCheckCode(points [][2]int, width, height int) (string, error) {

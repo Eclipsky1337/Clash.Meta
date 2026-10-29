@@ -83,21 +83,13 @@ func TestTOTPCode(t *testing.T) {
 
 func TestParseAuthStep(t *testing.T) {
 	step := parseAuthStep(authStepData{
-		NextService: "auth/token",
-		NextServiceList: []struct {
-			AuthID   string `json:"authId"`
-			AuthType string `json:"authType"`
-			SubType  string `json:"subType"`
-		}{{AuthID: "id-1", AuthType: "auth/totp"}},
+		NextService:     "auth/token",
+		NextServiceList: []authServiceInfo{{AuthID: "id-1", AuthType: "auth/totp"}},
 	})
 	if step.Service != "auth/totp" || step.AuthID != "id-1" {
 		t.Fatalf("unexpected step: %+v", step)
 	}
-	step = parseAuthStep(authStepData{NextService: "auth/sms", NextServiceList: []struct {
-		AuthID   string `json:"authId"`
-		AuthType string `json:"authType"`
-		SubType  string `json:"subType"`
-	}{{AuthID: "id-2", AuthType: "auth/sms"}}})
+	step = parseAuthStep(authStepData{NextService: "auth/sms", NextServiceList: []authServiceInfo{{AuthID: "id-2", AuthType: "auth/sms"}}})
 	if step.smsMode != 1 {
 		t.Fatalf("expected authId SMS mode, got %+v", step)
 	}
@@ -404,7 +396,7 @@ func TestFakeServerLogin(t *testing.T) {
 	if restarted.Status().State != StateNeedLogin {
 		t.Fatalf("restarted state = %s", restarted.Status().State)
 	}
-	if len(restarted.Snapshot().Domains) == 0 {
+	if restarted.Status().Resources == 0 {
 		t.Fatal("cached resources were not loaded before login")
 	}
 	var published Snapshot
@@ -470,7 +462,7 @@ func TestFakeServerSessionExpiryKeepsResources(t *testing.T) {
 	if client.Status().State != StateExpired {
 		t.Fatalf("status after refresh failure = %+v", client.Status())
 	}
-	if len(client.Snapshot().Domains) == 0 {
+	if client.Status().Resources == 0 {
 		t.Fatal("resources were cleared on expiry")
 	}
 	if _, err := client.DialContext(context.Background(), "a.example.com", netip.Addr{}, 80); !errors.Is(err, ErrAuthRequired) {

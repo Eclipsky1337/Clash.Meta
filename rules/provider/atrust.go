@@ -84,7 +84,7 @@ type AtrustRuleProviders struct {
 	IP     *AtrustRuleProvider
 }
 
-func NewAtrustRuleProviders(name string) (*AtrustRuleProviders, func()) {
+func NewAtrustRuleProviders(name string) *AtrustRuleProviders {
 	domainStrategy := newStrategy(P.Domain, nil)
 	domainStrategy.Reset()
 	ipStrategy := newStrategy(P.IPCIDR, nil)
@@ -92,9 +92,9 @@ func NewAtrustRuleProviders(name string) (*AtrustRuleProviders, func()) {
 	domain := &AtrustRuleProvider{name: "atrust-domain", behavior: P.Domain, strategy: domainStrategy}
 	ip := &AtrustRuleProvider{name: "atrust-ip", behavior: P.IPCIDR, strategy: ipStrategy}
 	providers := &AtrustRuleProviders{Domain: domain, IP: ip}
-	unsubscribe := atrust.SubscribeSnapshot(name, func(snapshot atrust.Snapshot) {
+	atrust.SetSnapshotListener(name, func(snapshot atrust.Snapshot) {
 		domain.SetPayload(snapshot.Domains)
 		ip.SetPayload(snapshot.CIDRs)
 	})
-	return providers, unsubscribe
+	return providers
 }

@@ -38,7 +38,6 @@ type authSession struct {
 	login    *atrust.LoginSession
 	nonce    string
 	provider atrust.Provider
-	lastSeen time.Time
 }
 
 var (
@@ -213,18 +212,6 @@ func (s *server) handleProvider(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		s.createSession(w, provider)
-	case "resources":
-		if r.Method != http.MethodGet {
-			methodNotAllowed(w)
-			return
-		}
-		s.handleResources(w, provider)
-	case "resources-raw":
-		if r.Method != http.MethodGet {
-			methodNotAllowed(w)
-			return
-		}
-		s.handleRawResources(w, provider)
 	case "logout":
 		if r.Method != http.MethodPost {
 			methodNotAllowed(w)
@@ -239,33 +226,6 @@ func (s *server) handleProvider(w http.ResponseWriter, r *http.Request) {
 	default:
 		http.NotFound(w, r)
 	}
-}
-
-func (s *server) handleResources(w http.ResponseWriter, provider atrust.Provider) {
-	type snapshotProvider interface {
-		Snapshot() atrust.Snapshot
-	}
-	snapshot, ok := provider.(snapshotProvider)
-	if !ok {
-		writeJSON(w, map[string]any{"domains": []string{}, "cidrs": []string{}})
-		return
-	}
-	writeJSON(w, snapshot.Snapshot())
-}
-
-func (s *server) handleRawResources(w http.ResponseWriter, provider atrust.Provider) {
-	rawProvider, ok := provider.(interface{ ResourceJSON() []byte })
-	if !ok {
-		writeJSON(w, map[string]any{})
-		return
-	}
-	raw := rawProvider.ResourceJSON()
-	if len(raw) == 0 {
-		writeJSON(w, map[string]any{})
-		return
-	}
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	_, _ = w.Write(raw)
 }
 
 func (s *server) createSession(w http.ResponseWriter, provider atrust.Provider) {
@@ -283,7 +243,6 @@ func (s *server) createSession(w http.ResponseWriter, provider atrust.Provider) 
 		login:    login,
 		nonce:    randomNonce(),
 		provider: provider,
-		lastSeen: time.Now(),
 	}
 	s.sessions[login.ID] = session
 	s.byProxy[provider.Name()] = session
@@ -324,9 +283,6 @@ func (s *server) stepJSON(session *authSession, challenge *atrust.Challenge) any
 		step["image"] = fmt.Sprintf("/auth/v1/sessions/%s/captcha?step=%s&t=%s", session.login.ID, challenge.ID, session.nonce)
 		step["image_type"] = challenge.ImageType
 	}
-	if challenge.URL != "" {
-		step["url"] = challenge.URL
-	}
 	if challenge.Phone != "" {
 		step["phone"] = challenge.Phone
 	}
@@ -353,7 +309,6 @@ func (s *server) handleSession(w http.ResponseWriter, r *http.Request) {
 				writeError(w, http.StatusForbidden, "invalid_nonce", "invalid or missing nonce")
 				return
 			}
-			s.touch(session)
 			s.writeSession(w, session, session.provider)
 		case http.MethodDelete:
 			session.login.Cancel()
@@ -426,7 +381,6 @@ func (s *server) submit(w http.ResponseWriter, r *http.Request, session *authSes
 		writeError(w, status, code, err.Error())
 		return
 	}
-	s.touch(session)
 	s.writeSession(w, session, session.provider)
 }
 
@@ -490,7 +444,6 @@ func (s *server) handlePage(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "登录会话不存在或已过期", http.StatusNotFound)
 		return
 	}
-	s.touch(session)
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.Header().Set("Content-Security-Policy", "default-src 'none'; img-src 'self'; connect-src 'self'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; frame-ancestors 'none'")
 	_, _ = w.Write([]byte(loginPage))
@@ -517,12 +470,6 @@ func (s *server) authorizedQuery(r *http.Request, session *authSession) bool {
 
 func constantTimeEqual(a, b string) bool {
 	return len(a) == len(b) && subtle.ConstantTimeCompare([]byte(a), []byte(b)) == 1
-}
-
-func (s *server) touch(session *authSession) {
-	s.mu.Lock()
-	session.lastSeen = time.Now()
-	s.mu.Unlock()
 }
 
 func (s *server) drop(id string) {

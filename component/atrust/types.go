@@ -82,7 +82,6 @@ type DomainResource struct {
 type Snapshot struct {
 	Domains []string
 	CIDRs   []string
-	Version uint64
 }
 
 // Options configures a Client. It deliberately has no mihomo types so the

@@ -10,16 +10,14 @@ import (
 
 func TestAtrustRuleProvidersReplayLatestSnapshot(t *testing.T) {
 	atrust.PublishSnapshot("late-atrust", atrust.Snapshot{Domains: []string{"+.late.example"}, CIDRs: []string{"10.9.0.0/16"}})
-	providers, unsubscribe := NewAtrustRuleProviders("late-atrust")
-	defer unsubscribe()
+	providers := NewAtrustRuleProviders("late-atrust")
 	if providers.Domain.Count() != 1 || providers.IP.Count() != 1 {
 		t.Fatalf("late subscription counts: domain=%d ip=%d", providers.Domain.Count(), providers.IP.Count())
 	}
 }
 
 func TestAtrustRuleProviders(t *testing.T) {
-	providers, unsubscribe := NewAtrustRuleProviders("test-atrust")
-	defer unsubscribe()
+	providers := NewAtrustRuleProviders("test-atrust")
 	if providers.Domain.Count() != 0 || providers.IP.Count() != 0 {
 		t.Fatal("new providers should start empty")
 	}

@@ -457,7 +457,6 @@ type l3Flow struct {
 	pending      [][]byte
 	authPending  bool
 	authDeadline time.Time
-	lastSeen     time.Time
 	authMeta     packetMeta
 }
 
@@ -704,11 +703,10 @@ func (c *l3Conn) sendPacket(packet []byte, meta packetMeta, appID, group string)
 	flow := c.flows[key]
 	if flow == nil {
 		c.nextID++
-		flow = &l3Flow{id: c.nextID, appID: appID, group: group, lastSeen: time.Now()}
+		flow = &l3Flow{id: c.nextID, appID: appID, group: group}
 		c.flows[key] = flow
 	}
 	flow.authMeta = meta
-	flow.lastSeen = time.Now()
 	token := flow.token
 	if token != "" {
 		c.mu.Unlock()

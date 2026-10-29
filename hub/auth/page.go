@@ -132,11 +132,6 @@ a { color: #2563eb; }
         });
         form.appendChild(input);
       });
-      if (step.type === 'cas' || step.type === 'oauth') {
-        if (step.url) {
-          form.appendChild(el('p', {}, [el('a', { href: step.url, target: '_blank', rel: 'noopener', text: '打开认证页面' })]));
-        }
-      }
     }
     var submit = el('button', { type: 'submit', text: step.type === 'confirm' ? '确认' : '提交' });
     submit.disabled = submitting;

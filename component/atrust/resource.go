@@ -15,7 +15,7 @@ type clientResource struct {
 		AppList struct {
 			Data struct {
 				AppInfo []struct {
-					Apps []resourceApp
+					Apps []appResource
 				}
 				Config struct {
 					NodeGroupConf struct {
@@ -50,20 +50,20 @@ type clientResource struct {
 	}
 }
 
-type resourceApp struct {
-	ID              string
-	NodeGroupID     string
-	AccessModel     string
-	EnableTCPPrefL3 bool
-	AddrPretend     any `json:"addrPretend"`
-	AddressList     []resourceAddress
+type appResource struct {
+	AppID     string            `json:"id"`
+	GroupID   string            `json:"nodeGroupID"`
+	Model     string            `json:"accessModel"`
+	PreferL3  bool              `json:"enableTCPPrefL3"`
+	Pretend   any               `json:"addrPretend"`
+	Addresses []addressResource `json:"addressList"`
 }
 
-type resourceAddress struct {
-	Protocol string
-	Port     string
-	Host     string
-	IP       []string
+type addressResource struct {
+	Proto     string   `json:"protocol"`
+	PortRange string   `json:"port"`
+	Target    string   `json:"host"`
+	IPs       []string `json:"ip"`
 }
 
 type resourceIndex struct {
@@ -103,28 +103,28 @@ func parseResource(data []byte, server string) (*resourceIndex, error) {
 	}
 	for _, app := range raw.Data.AppList.Data.AppInfo {
 		for _, item := range app.Apps {
-			if item.AccessModel != "L3VPN" {
+			if item.Model != "L3VPN" {
 				continue
 			}
-			for _, address := range item.AddressList {
-				if address.Protocol != "tcp" && address.Protocol != "udp" && address.Protocol != "all" {
+			for _, address := range item.Addresses {
+				if address.Proto != "tcp" && address.Proto != "udp" && address.Proto != "all" {
 					continue
 				}
-				portMin, portMax, err := parsePortRange(address.Port)
+				portMin, portMax, err := parsePortRange(address.PortRange)
 				if err != nil {
 					continue
 				}
-				host := strings.TrimSpace(address.Host)
+				host := strings.TrimSpace(address.Target)
 				if host == "" {
 					continue
 				}
 				entry := IPResource{
 					PortMin:         portMin,
 					PortMax:         portMax,
-					Protocol:        address.Protocol,
-					AppID:           item.ID,
-					NodeGroupID:     item.NodeGroupID,
-					EnableTCPPrefL3: item.EnableTCPPrefL3,
+					Protocol:        address.Proto,
+					AppID:           item.AppID,
+					NodeGroupID:     item.GroupID,
+					EnableTCPPrefL3: item.PreferL3,
 				}
 				switch {
 				case parseHostRange(host, &entry):
@@ -138,13 +138,13 @@ func parseResource(data []byte, server string) (*resourceIndex, error) {
 						Domain:          domain,
 						PortMin:         portMin,
 						PortMax:         portMax,
-						Protocol:        address.Protocol,
-						AppID:           item.ID,
-						NodeGroupID:     item.NodeGroupID,
-						EnableTCPPrefL3: item.EnableTCPPrefL3,
-						AddrPretend:     addrPretend(item.AddrPretend),
+						Protocol:        address.Proto,
+						AppID:           item.AppID,
+						NodeGroupID:     item.GroupID,
+						EnableTCPPrefL3: item.PreferL3,
+						AddrPretend:     addrPretend(item.Pretend),
 					})
-					for _, ipText := range address.IP {
+					for _, ipText := range address.IPs {
 						ip, err := netip.ParseAddr(ipText)
 						if err == nil && ip.Is4() {
 							index.dns[domain] = append(index.dns[domain], ip)
@@ -153,10 +153,10 @@ func parseResource(data []byte, server string) (*resourceIndex, error) {
 								IPMax:           ip,
 								PortMin:         portMin,
 								PortMax:         portMax,
-								Protocol:        address.Protocol,
-								AppID:           item.ID,
-								NodeGroupID:     item.NodeGroupID,
-								EnableTCPPrefL3: item.EnableTCPPrefL3,
+								Protocol:        address.Proto,
+								AppID:           item.AppID,
+								NodeGroupID:     item.GroupID,
+								EnableTCPPrefL3: item.PreferL3,
 							})
 						}
 					}

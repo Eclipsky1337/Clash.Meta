@@ -49,48 +49,30 @@ func ProviderByName(name string) (Provider, bool) {
 }
 
 // Snapshot listeners let the internal rule providers track resource changes
-// without the outbound importing rules/provider (which would cycle).
+// without the outbound importing rules/provider (which would cycle). One
+// listener per proxy name is enough: a config reload replaces the providers.
 var (
 	snapshotMu        sync.RWMutex
-	snapshotListeners = map[string]map[uint64]func(Snapshot){}
+	snapshotListeners = map[string]func(Snapshot){}
 	snapshotLatest    = map[string]Snapshot{}
-	snapshotNextID    uint64
 )
 
-func SubscribeSnapshot(name string, listener func(Snapshot)) func() {
+func SetSnapshotListener(name string, listener func(Snapshot)) {
 	snapshotMu.Lock()
-	snapshotNextID++
-	id := snapshotNextID
-	if snapshotListeners[name] == nil {
-		snapshotListeners[name] = map[uint64]func(Snapshot){}
-	}
-	snapshotListeners[name][id] = listener
+	snapshotListeners[name] = listener
 	latest, hasLatest := snapshotLatest[name]
 	snapshotMu.Unlock()
 	if hasLatest {
 		listener(latest)
-	}
-	return func() {
-		snapshotMu.Lock()
-		if listeners := snapshotListeners[name]; listeners != nil {
-			delete(listeners, id)
-			if len(listeners) == 0 {
-				delete(snapshotListeners, name)
-			}
-		}
-		snapshotMu.Unlock()
 	}
 }
 
 func PublishSnapshot(name string, snapshot Snapshot) {
 	snapshotMu.Lock()
 	snapshotLatest[name] = snapshot
-	listeners := make([]func(Snapshot), 0, len(snapshotListeners[name]))
-	for _, listener := range snapshotListeners[name] {
-		listeners = append(listeners, listener)
-	}
+	listener := snapshotListeners[name]
 	snapshotMu.Unlock()
-	for _, listener := range listeners {
+	if listener != nil {
 		listener(snapshot)
 	}
 }

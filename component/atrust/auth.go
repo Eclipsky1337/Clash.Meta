@@ -67,13 +67,15 @@ type authStep struct {
 	smsMode int
 }
 
+type authServiceInfo struct {
+	AuthID   string `json:"authId"`
+	AuthType string `json:"authType"`
+	SubType  string `json:"subType"`
+}
+
 type authStepData struct {
-	NextService     string `json:"nextService"`
-	NextServiceList []struct {
-		AuthID   string `json:"authId"`
-		AuthType string `json:"authType"`
-		SubType  string `json:"subType"`
-	} `json:"nextServiceList"`
+	NextService     string            `json:"nextService"`
+	NextServiceList []authServiceInfo `json:"nextServiceList"`
 }
 
 type loginResult struct {
@@ -665,36 +667,19 @@ func (a *authClient) submitToken(ctx context.Context, service string, payload ma
 }
 
 func parseAuthStep(data authStepData) authStep {
-	step := authStep{Service: data.NextService}
-	var selected *struct {
-		AuthID   string `json:"authId"`
-		AuthType string `json:"authType"`
-		SubType  string `json:"subType"`
-	}
-	for i := range data.NextServiceList {
-		if step.Service != "" && data.NextServiceList[i].AuthType == step.Service {
-			selected = &data.NextServiceList[i]
-			break
+	service := data.NextService
+	chosen := selectAuthService(data.NextServiceList, service)
+	if chosen != nil {
+		switch {
+		case service == "":
+			service = chosen.AuthType
+		case service == "auth/token":
+			service = tokenAuthService(chosen)
 		}
 	}
-	if selected == nil && len(data.NextServiceList) > 0 {
-		selected = &data.NextServiceList[0]
-	}
-	if selected != nil {
-		step.AuthID = selected.AuthID
-		switch step.Service {
-		case "":
-			step.Service = selected.AuthType
-		case "auth/token":
-			switch selected.AuthType {
-			case "auth/totp", "auth/radius", "auth/challenge":
-				step.Service = selected.AuthType
-			case "auth/token":
-				if selected.SubType == "totp" {
-					step.Service = "auth/totp"
-				}
-			}
-		}
+	step := authStep{Service: service}
+	if chosen != nil {
+		step.AuthID = chosen.AuthID
 	}
 	if step.Service == "auth/sendSms" {
 		step.Service = "auth/sms"
@@ -710,6 +695,30 @@ func parseAuthStep(data authStepData) authStep {
 		}
 	}
 	return step
+}
+
+func selectAuthService(list []authServiceInfo, service string) *authServiceInfo {
+	for i := range list {
+		if service != "" && list[i].AuthType == service {
+			return &list[i]
+		}
+	}
+	if len(list) > 0 {
+		return &list[0]
+	}
+	return nil
+}
+
+func tokenAuthService(info *authServiceInfo) string {
+	switch info.AuthType {
+	case "auth/totp", "auth/radius", "auth/challenge":
+		return info.AuthType
+	case "auth/token":
+		if info.SubType == "totp" {
+			return "auth/totp"
+		}
+	}
+	return "auth/token"
 }
 
 func (a *authClient) phoneNumber(ctx context.Context, authID string) ([]string, error) {

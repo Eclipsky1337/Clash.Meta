@@ -135,26 +135,6 @@ func (c *Client) SetSnapshotHandler(handler func(Snapshot)) {
 // Name returns the configured proxy name.
 func (c *Client) Name() string { return c.options.Name }
 
-// ResourceJSON returns the last client resource document for diagnostics.
-func (c *Client) ResourceJSON() []byte {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
-	return append([]byte(nil), c.rawResource...)
-}
-
-// Snapshot returns the current resource snapshot for the auth API and GUI.
-func (c *Client) Snapshot() Snapshot {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
-	if c.resources == nil {
-		return Snapshot{}
-	}
-	snapshot := c.resources.snapshot
-	snapshot.Domains = append([]string(nil), snapshot.Domains...)
-	snapshot.CIDRs = append([]string(nil), snapshot.CIDRs...)
-	return snapshot
-}
-
 // Status returns a copy of the current state.
 func (c *Client) Status() Status {
 	c.mu.RLock()
@@ -714,22 +694,20 @@ func (c *Client) zeroRTT() bool {
 	}
 	var parsed struct {
 		Data struct {
-			Capacities struct {
-				ZeroRTT struct {
-					Version string `json:"version"`
-				} `json:"zeroRTT"`
+			Capacities map[string]struct {
+				Version string `json:"version"`
 			} `json:"capacities"`
-			Options struct {
-				Tun0RTT struct {
-					Enable bool `json:"enable"`
-				} `json:"tun0rtt"`
+			Options map[string]struct {
+				Enable bool `json:"enable"`
 			} `json:"options"`
 		} `json:"data"`
 	}
 	if err := json.Unmarshal(manifest, &parsed); err != nil {
 		return false
 	}
-	return parsed.Data.Capacities.ZeroRTT.Version != "" && parsed.Data.Options.Tun0RTT.Enable
+	zeroRTT := parsed.Data.Capacities["zeroRTT"]
+	tun0RTT := parsed.Data.Options["tun0rtt"]
+	return zeroRTT.Version != "" && tun0RTT.Enable
 }
 
 func newConnectionID(deviceID string) string {
