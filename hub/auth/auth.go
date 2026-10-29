@@ -441,7 +441,7 @@ func (s *server) handlePage(w http.ResponseWriter, r *http.Request) {
 	id := strings.Split(rest, "/")[0]
 	session, ok := s.lookup(id)
 	if !ok || !s.authorizedQuery(r, session) {
-		http.Error(w, "登录会话不存在或已过期", http.StatusNotFound)
+		http.Error(w, "Login session not found or expired", http.StatusNotFound)
 		return
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")

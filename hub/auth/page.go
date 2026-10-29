@@ -1,11 +1,11 @@
 package auth
 
 const loginPage = `<!doctype html>
-<html lang="zh-CN">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>aTrust 登录</title>
+<title>aTrust Sign-in</title>
 <style>
 :root { color-scheme: light dark; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", sans-serif; }
 body { margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center; background: #f2f4f7; color: #1b1f24; }
@@ -34,11 +34,11 @@ a { color: #2563eb; }
 </head>
 <body>
 <div class="card">
-  <h1 id="title">aTrust 登录</h1>
-  <p id="description">正在加载登录状态…</p>
+  <h1 id="title">aTrust Sign-in</h1>
+  <p id="description">Loading sign-in status…</p>
   <form id="form" novalidate></form>
   <div id="error" class="error"></div>
-  <div class="footer">此页面仅监听本机回环地址，验证码与密码不会写入磁盘。</div>
+  <div class="footer">This page listens on loopback only. Codes and passwords are never written to disk.</div>
 </div>
 <script>
 (function () {
@@ -90,12 +90,12 @@ a { color: #2563eb; }
     form.innerHTML = '';
     points = [];
     if (!step) { return; }
-    title.textContent = step.title || 'aTrust 登录';
+    title.textContent = step.title || 'aTrust Sign-in';
     description.textContent = step.description || '';
     if (step.type === 'captcha' && step.image) {
       var wrap = el('div', { className: 'captcha-wrap' });
-      var image = el('img', { src: step.image, alt: '点击验证码' });
-      var hint = el('div', { className: 'hint', text: '请按图片中的顺序依次点击字符。' });
+      var image = el('img', { src: step.image, alt: 'Click verification' });
+      var hint = el('div', { className: 'hint', text: 'Click the characters in the order shown.' });
       var markerLayer = [];
       image.addEventListener('click', function (event) {
         var rect = image.getBoundingClientRect();
@@ -111,7 +111,7 @@ a { color: #2563eb; }
       wrap.appendChild(image);
       form.appendChild(wrap);
       form.appendChild(hint);
-      var clear = el('button', { type: 'button', text: '重新选择', onclick: function () {
+      var clear = el('button', { type: 'button', text: 'Clear selection', onclick: function () {
         points = [];
         markerLayer.forEach(function (mark) { mark.remove(); });
         markerLayer = [];
@@ -133,7 +133,7 @@ a { color: #2563eb; }
         form.appendChild(input);
       });
     }
-    var submit = el('button', { type: 'submit', text: step.type === 'confirm' ? '确认' : '提交' });
+    var submit = el('button', { type: 'submit', text: step.type === 'confirm' ? 'Confirm' : 'Submit' });
     submit.disabled = submitting;
     form.appendChild(submit);
   }
@@ -152,14 +152,14 @@ a { color: #2563eb; }
     state = snapshot;
     errorBox.textContent = snapshot.error || '';
     if (snapshot.state === 'succeeded') {
-      title.textContent = '登录成功';
-      description.textContent = '可以关闭此页面，返回客户端继续使用。';
-      form.innerHTML = '<p class="success">aTrust 会话已建立。</p>';
+      title.textContent = 'Sign-in complete';
+      description.textContent = 'You can close this page and return to the client.';
+      form.innerHTML = '<p class="success">aTrust session established.</p>';
       return;
     }
     if (snapshot.state === 'failed' || snapshot.state === 'cancelled') {
-      title.textContent = '登录失败';
-      description.textContent = '请返回客户端重新发起登录。';
+      title.textContent = 'Sign-in failed';
+      description.textContent = 'Return to the client and start sign-in again.';
       form.innerHTML = '';
       return;
     }
@@ -167,8 +167,8 @@ a { color: #2563eb; }
       renderStep(snapshot.step);
       return;
     }
-    title.textContent = '正在登录…';
-    description.textContent = '正在与校园网认证服务通信。';
+    title.textContent = 'Signing in…';
+    description.textContent = 'Contacting the authentication service.';
     form.innerHTML = '';
   }
 
@@ -183,7 +183,7 @@ a { color: #2563eb; }
     if (!state || !state.step || submitting) { return; }
     submitting = true;
     var button = form.querySelector('button[type="submit"]');
-    if (button) { button.disabled = true; button.textContent = '提交中…'; }
+    if (button) { button.disabled = true; button.textContent = 'Submitting…'; }
     request('/auth/v1/sessions/' + encodeURIComponent(id) + '/submit', {
       method: 'POST',
       body: JSON.stringify({ step_id: state.step.id, values: collect(state.step) })

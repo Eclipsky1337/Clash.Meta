@@ -277,10 +277,10 @@ func (c *Client) authenticate(ctx context.Context, handler challengeHandler, aut
 	if username == "" || password == "" {
 		response, err := handler(ctx, &Challenge{
 			Type:  ChallengeCredentials,
-			Title: "校园网账号登录",
+			Title: "aTrust Sign-in",
 			Fields: []Field{
-				{Name: "username", Type: "text", Label: "账号", Required: true, Placeholder: "学号 / 工号"},
-				{Name: "password", Type: "password", Label: "密码", Required: true},
+				{Name: "username", Type: "text", Label: "Username", Required: true, Placeholder: "Student / staff ID"},
+				{Name: "password", Type: "password", Label: "Password", Required: true},
 			},
 		})
 		if err != nil {
@@ -388,10 +388,10 @@ func (c *Client) completeSMS(ctx context.Context, handler challengeHandler, step
 	}
 	response, err := handler(ctx, &Challenge{
 		Type:        ChallengeSMS,
-		Title:       "短信验证码",
-		Description: "验证码已发送，请输入短信中的验证码。",
+		Title:       "SMS verification",
+		Description: "A verification code was sent to your phone. Enter it below.",
 		Phone:       phone,
-		Fields:      []Field{{Name: "code", Type: "code", Label: "验证码", Required: true, Count: 6}},
+		Fields:      []Field{{Name: "code", Type: "code", Label: "Code", Required: true, Count: 6}},
 	})
 	if err != nil {
 		return authStep{}, err
@@ -410,8 +410,8 @@ func (c *Client) completeCustomSMS(ctx context.Context, handler challengeHandler
 	}
 	response, err := handler(ctx, &Challenge{
 		Type:   ChallengeSMS,
-		Title:  "短信验证码",
-		Fields: []Field{{Name: "code", Type: "code", Label: "验证码", Required: true, Count: 6}},
+		Title:  "SMS verification",
+		Fields: []Field{{Name: "code", Type: "code", Label: "Code", Required: true, Count: 6}},
 	})
 	if err != nil {
 		return authStep{}, err
@@ -434,7 +434,7 @@ func (c *Client) completeTOTP(ctx context.Context, handler challengeHandler) (au
 	} else {
 		response, err := handler(ctx, &Challenge{
 			Type:   ChallengeTOTP,
-			Title:  "动态口令",
+			Title:  "One-time password",
 			Fields: []Field{{Name: "code", Type: "code", Label: "TOTP", Required: true, Count: 6}},
 		})
 		if err != nil {
@@ -456,8 +456,8 @@ func (c *Client) completeTOTP(ctx context.Context, handler challengeHandler) (au
 func (c *Client) completeRadius(ctx context.Context, handler challengeHandler, service string) (authStep, error) {
 	response, err := handler(ctx, &Challenge{
 		Type:   ChallengeRadius,
-		Title:  "RADIUS 令牌",
-		Fields: []Field{{Name: "code", Type: "code", Label: "令牌", Required: true}},
+		Title:  "RADIUS token",
+		Fields: []Field{{Name: "code", Type: "code", Label: "Token", Required: true}},
 	})
 	if err != nil {
 		return authStep{}, err
@@ -484,13 +484,13 @@ func (c *Client) askCaptcha(ctx context.Context, handler challengeHandler, image
 	width, height := imageSize(imageData)
 	response, err := handler(ctx, &Challenge{
 		Type:      ChallengeCaptcha,
-		Title:     "点击验证码",
+		Title:     "Click verification",
 		Image:     imageData,
 		ImageType: imageMime(imageData),
 		Fields: []Field{{
 			Name:     "points",
 			Type:     "click",
-			Label:    "请按提示顺序点击图中的字符",
+			Label:    "Click the characters in the order shown",
 			Count:    4,
 			Required: true,
 		}},
