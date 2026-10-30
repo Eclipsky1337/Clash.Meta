@@ -399,6 +399,9 @@ func TestFakeServerLogin(t *testing.T) {
 	if restarted.Status().Resources == 0 {
 		t.Fatal("cached resources were not loaded before login")
 	}
+	if restarted.Status().Domains == 0 || restarted.Status().CIDRs == 0 {
+		t.Fatalf("cached resource counts = %+v", restarted.Status())
+	}
 	var published Snapshot
 	restarted.SetSnapshotHandler(func(snapshot Snapshot) { published = snapshot })
 	if len(published.Domains) == 0 {

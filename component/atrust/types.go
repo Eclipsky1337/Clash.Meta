@@ -130,4 +130,6 @@ type Status struct {
 	UpdatedAt  time.Time `json:"updated_at,omitempty"`
 	HasSession bool      `json:"has_session"`
 	Resources  int       `json:"resources"`
+	Domains    int       `json:"domains"`
+	CIDRs      int       `json:"cidrs"`
 }

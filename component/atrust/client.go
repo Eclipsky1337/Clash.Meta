@@ -150,7 +150,9 @@ func (c *Client) Status() Status {
 		status.Error = c.lastErr.Error()
 	}
 	if c.resources != nil {
-		status.Resources = len(c.resources.ipResources) + len(c.resources.domains)
+		status.Domains = len(c.resources.domains)
+		status.CIDRs = len(c.resources.ipResources)
+		status.Resources = status.Domains + status.CIDRs
 	}
 	return status
 }
