@@ -313,6 +313,7 @@ func TestFakeServerLogin(t *testing.T) {
 		fmt.Fprint(w, `{"code":0,"message":"ok","data":{"ticket":"ticket-1","nextService":""}}`)
 	})
 	handler.HandleFunc("/passport/v1/auth/authCheck", func(w http.ResponseWriter, r *http.Request) {
+		http.SetCookie(w, &http.Cookie{Name: "sid", Value: "fake-sid", Path: "/", Secure: true})
 		fmt.Fprint(w, `{"code":0,"data":{"nextService":""}}`)
 	})
 	handler.HandleFunc("/controller/v1/public/reportEnv", func(w http.ResponseWriter, r *http.Request) {
@@ -393,7 +394,7 @@ func TestFakeServerLogin(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer restarted.Close()
-	if restarted.Status().State != StateNeedLogin {
+	if restarted.Status().State != StateReady {
 		t.Fatalf("restarted state = %s", restarted.Status().State)
 	}
 	if restarted.Status().Resources == 0 {
@@ -406,9 +407,6 @@ func TestFakeServerLogin(t *testing.T) {
 	restarted.SetSnapshotHandler(func(snapshot Snapshot) { published = snapshot })
 	if len(published.Domains) == 0 {
 		t.Fatal("snapshot handler did not receive the cached snapshot")
-	}
-	if _, err := restarted.DialContext(context.Background(), "a.example.com", netip.Addr{}, 80); !errors.Is(err, ErrAuthRequired) {
-		t.Fatalf("cached routing should fail closed with ErrAuthRequired, got %v", err)
 	}
 }
 

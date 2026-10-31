@@ -101,8 +101,8 @@ func NewClient(options Options) (*Client, error) {
 		auth.restoreCookies(persisted.Cookies)
 	}
 	state := StateNeedLogin
-	if persisted.SID == "" {
-		state = StateNeedLogin
+	if persisted.SID != "" && len(persisted.Resources) > 0 {
+		state = StateReady
 	}
 	client := &Client{
 		options:      options,
@@ -116,6 +116,9 @@ func NewClient(options Options) (*Client, error) {
 		if cached, err := parseResource(persisted.Resources, options.Server); err == nil {
 			client.resources = cached
 		}
+	}
+	if client.state == StateReady {
+		client.startRefresh()
 	}
 	return client, nil
 }
