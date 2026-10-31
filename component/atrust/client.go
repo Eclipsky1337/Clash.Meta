@@ -118,7 +118,7 @@ func NewClient(options Options) (*Client, error) {
 		}
 	}
 	if client.state == StateReady {
-		client.startRefresh()
+		client.startRefresh(true)
 	}
 	return client, nil
 }
@@ -209,7 +209,7 @@ func (c *Client) login(ctx context.Context, handler challengeHandler) error {
 		return err
 	}
 	c.setState(StateReady, nil)
-	c.startRefresh()
+	c.startRefresh(false)
 	return nil
 }
 
@@ -554,12 +554,16 @@ func (c *Client) publishSnapshot() {
 	handler(resources.snapshot)
 }
 
-func (c *Client) startRefresh() {
+func (c *Client) startRefresh(immediate bool) {
 	c.refreshCancelLocked(func(cancel context.CancelFunc) {
 		c.refreshCancel = cancel
 	}, func(ctx context.Context) {
 		interval := c.options.RefreshInterval
-		timer := time.NewTimer(interval)
+		wait := interval
+		if immediate {
+			wait = 0
+		}
+		timer := time.NewTimer(wait)
 		defer timer.Stop()
 		for {
 			select {
@@ -577,6 +581,7 @@ func (c *Client) startRefresh() {
 					c.closeTunnel()
 					return
 				}
+				c.setState(StateReady, err)
 				backoff := interval
 				if backoff > time.Minute {
 					backoff = time.Minute
@@ -589,6 +594,7 @@ func (c *Client) startRefresh() {
 			c.persisted.Cookies = result.Cookies
 			c.updatedAt = time.Now()
 			c.mu.Unlock()
+			c.setState(StateReady, nil)
 			_ = saveState(c.options.statePath(), c.persisted)
 			timer.Reset(interval)
 		}
