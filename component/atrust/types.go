@@ -124,6 +124,8 @@ func (o Options) statePath() string {
 // Status is the read-only state exposed to the GUI and auth API.
 type Status struct {
 	Name       string    `json:"name"`
+	Server     string    `json:"server,omitempty"`
+	Port       int       `json:"port,omitempty"`
 	State      State     `json:"state"`
 	Account    string    `json:"account,omitempty"`
 	Error      string    `json:"error,omitempty"`

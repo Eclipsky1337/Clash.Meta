@@ -144,6 +144,8 @@ func (c *Client) Status() Status {
 	defer c.mu.RUnlock()
 	status := Status{
 		Name:       c.options.Name,
+		Server:     c.options.Server,
+		Port:       c.options.Port,
 		State:      c.state,
 		Account:    c.persisted.Username,
 		UpdatedAt:  c.updatedAt,
