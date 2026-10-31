@@ -647,7 +647,9 @@ func (c *Client) Close() error {
 
 // Logout clears the persisted session and closes the tunnel.
 func (c *Client) Logout(ctx context.Context) error {
-	_ = c.auth.logout(ctx)
+	if err := c.auth.logout(ctx); err != nil {
+		return err
+	}
 	c.closeTunnel()
 	if auth, err := newAuthClient(c.options); err == nil {
 		c.auth = auth
