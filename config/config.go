@@ -7,6 +7,7 @@ import (
 	"net/netip"
 	"net/url"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 	_ "unsafe"
@@ -1096,8 +1097,9 @@ func injectAtrustProviders(proxies map[string]C.Proxy, providers map[string]P.Ru
 	if len(names) == 0 {
 		return nil
 	}
+	sort.Strings(names)
 	if len(names) > 1 {
-		return fmt.Errorf("aTrust supports one node per configuration, found %d: %v", len(names), names)
+		log.Warnln("[aTrust] %d nodes declared; shared rule providers follow %q", len(names), names[0])
 	}
 	for _, reserved := range []string{"atrust-domain", "atrust-ip"} {
 		if _, exists := providers[reserved]; exists {
