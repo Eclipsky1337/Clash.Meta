@@ -49,13 +49,6 @@ var (
 // independent of the external controller on purpose: it carries credentials
 // and must never inherit the controller's bind address or CORS policy.
 func ReCreateServer(cfg Config) {
-	globalMu.Lock()
-	previous := global
-	global = nil
-	globalMu.Unlock()
-	if previous != nil {
-		previous.close()
-	}
 	if cfg.Listen == "" {
 		cfg.Listen = "127.0.0.1:0"
 	}
@@ -64,6 +57,23 @@ func ReCreateServer(cfg Config) {
 	}
 	if cfg.MaxAttempts <= 0 {
 		cfg.MaxAttempts = 5
+	}
+	globalMu.Lock()
+	previous := global
+	if previous != nil {
+		previous.mu.Lock()
+		sameListen := previous.config.Listen == cfg.Listen
+		previous.mu.Unlock()
+		if sameListen {
+			globalMu.Unlock()
+			previous.reconfigure(cfg)
+			return
+		}
+	}
+	global = nil
+	globalMu.Unlock()
+	if previous != nil {
+		previous.close()
 	}
 	listener, err := net.Listen("tcp", cfg.Listen)
 	if err != nil {
@@ -123,6 +133,22 @@ func (s *server) close() {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 	_ = s.http.Shutdown(ctx)
+}
+
+// reconfigure keeps the loopback port stable across config reloads while
+// dropping sessions that belonged to the previous provider set. A config
+// reload must not invalidate every login page URL by moving the listener.
+func (s *server) reconfigure(cfg Config) {
+	s.mu.Lock()
+	s.config = cfg
+	sessions := s.sessions
+	s.sessions = map[string]*authSession{}
+	s.byProxy = map[string]*authSession{}
+	s.mu.Unlock()
+	for _, session := range sessions {
+		session.login.Cancel()
+	}
+	log.Infoln("[Auth] listener kept on %s", s.listener.Addr())
 }
 
 func (s *server) cleanup() {
