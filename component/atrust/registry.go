@@ -26,7 +26,11 @@ func RegisterProvider(provider Provider) func() {
 	providerMu.Unlock()
 	return func() {
 		providerMu.Lock()
-		delete(providers, provider.Name())
+		// A config reload registers the replacement before the old outbound
+		// closes; only the current provider may remove its own name.
+		if current, ok := providers[provider.Name()]; ok && current == provider {
+			delete(providers, provider.Name())
+		}
 		providerMu.Unlock()
 	}
 }
