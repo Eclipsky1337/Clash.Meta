@@ -126,8 +126,9 @@ a { color: #2563eb; }
           id: 'field-' + field.name,
           type: field.type === 'password' ? 'password' : (field.type === 'code' ? 'text' : 'text'),
           inputmode: field.type === 'code' ? 'numeric' : 'text',
-          autocomplete: field.type === 'password' ? 'current-password' : 'one-time-code',
+          autocomplete: field.name === 'username' ? 'username' : (field.type === 'password' ? 'current-password' : 'one-time-code'),
           placeholder: field.placeholder || '',
+          value: field.value || '',
           'data-name': field.name
         });
         form.appendChild(input);

@@ -29,6 +29,7 @@ type Field struct {
 	Type        string `json:"type"`
 	Label       string `json:"label,omitempty"`
 	Placeholder string `json:"placeholder,omitempty"`
+	Value       string `json:"value,omitempty"`
 	Count       int    `json:"count,omitempty"`
 	Required    bool   `json:"required,omitempty"`
 }
