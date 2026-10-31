@@ -284,7 +284,7 @@ func (c *Client) authenticate(ctx context.Context, handler challengeHandler, aut
 	if username == "" || password == "" {
 		response, err := handler(ctx, &Challenge{
 			Type:  ChallengeCredentials,
-			Title: "aTrust Sign-in",
+			Title: "Sign-in",
 			Fields: []Field{
 				{Name: "username", Type: "text", Label: "Username", Required: true, Placeholder: "Student / staff ID", Value: username},
 				{Name: "password", Type: "password", Label: "Password", Required: true},

@@ -5,7 +5,7 @@ const loginPage = `<!doctype html>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>aTrust Sign-in</title>
+<title>Sign-in</title>
 <style>
 :root { color-scheme: light dark; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", sans-serif; }
 body { margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center; background: #f2f4f7; color: #1b1f24; }
@@ -22,23 +22,21 @@ button:disabled { opacity: .55; cursor: default; }
 .hint { font-size: 13px; color: #5b6573; margin-top: 4px; }
 .error { color: #b91c1c; white-space: pre-wrap; margin-top: 12px; font-size: 14px; }
 .success { color: #15803d; font-size: 16px; margin: 8px 0 0; }
-.footer { margin-top: 14px; font-size: 12px; color: #8a94a3; text-align: center; }
 a { color: #2563eb; }
 @media (prefers-color-scheme: dark) {
   body { background: #0f1115; color: #e8eaed; }
   .card { background: #181b21; box-shadow: 0 12px 40px rgba(0,0,0,.5); }
-  p, label, .hint, .footer { color: #9aa4b2; }
+  p, label, .hint { color: #9aa4b2; }
   input { background: #0f1115; border-color: #333a45; color: #e8eaed; }
 }
 </style>
 </head>
 <body>
 <div class="card">
-  <h1 id="title">aTrust Sign-in</h1>
+  <h1 id="title">Sign-in</h1>
   <p id="description">Loading sign-in status…</p>
   <form id="form" novalidate></form>
   <div id="error" class="error"></div>
-  <div class="footer">This page listens on loopback only. Codes and passwords are never written to disk.</div>
 </div>
 <script>
 (function () {
@@ -90,7 +88,7 @@ a { color: #2563eb; }
     form.innerHTML = '';
     points = [];
     if (!step) { return; }
-    title.textContent = step.title || 'aTrust Sign-in';
+    title.textContent = step.title || 'Sign-in';
     description.textContent = step.description || '';
     if (step.type === 'captcha' && step.image) {
       var wrap = el('div', { className: 'captcha-wrap' });
