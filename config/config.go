@@ -1087,6 +1087,10 @@ func parseRuleProviders(cfg *RawConfig) (ruleProviders map[string]P.RuleProvider
 // injectAtrustProviders adds the internal providers aTrust rules reference.
 // It runs after user providers are parsed and before rules and DNS, which is
 // the only window where RULE-SET and rule-set: nameserver-policy resolve.
+//
+// A single node keeps the historical names. Multiple nodes get one provider
+// pair per node (atrust-domain-<name>/atrust-ip-<name>), plus the historical
+// names as aliases for the first node so existing rules keep working.
 func injectAtrustProviders(proxies map[string]C.Proxy, providers map[string]P.RuleProvider) error {
 	var names []string
 	for name, proxy := range proxies {
@@ -1098,18 +1102,61 @@ func injectAtrustProviders(proxies map[string]C.Proxy, providers map[string]P.Ru
 		return nil
 	}
 	sort.Strings(names)
-	if len(names) > 1 {
-		log.Warnln("[aTrust] %d nodes declared; shared rule providers follow %q", len(names), names[0])
-	}
 	for _, reserved := range []string{"atrust-domain", "atrust-ip"} {
 		if _, exists := providers[reserved]; exists {
 			return fmt.Errorf("rule provider %q is reserved for aTrust; rename the user-defined provider", reserved)
 		}
 	}
-	atrustProviders := RP.NewAtrustRuleProviders(names[0])
-	providers["atrust-domain"] = atrustProviders.Domain
-	providers["atrust-ip"] = atrustProviders.IP
+	if len(names) == 1 {
+		atrustProviders := RP.NewAtrustRuleProviders(names[0])
+		providers["atrust-domain"] = atrustProviders.Domain
+		providers["atrust-ip"] = atrustProviders.IP
+		return nil
+	}
+	log.Warnln("[aTrust] %d nodes declared; providers follow each node name", len(names))
+	used := map[string]struct{}{}
+	for index, name := range names {
+		suffix := atrustProviderSuffix(name)
+		for {
+			if _, exists := used[suffix]; !exists {
+				break
+			}
+			suffix += "-2"
+		}
+		used[suffix] = struct{}{}
+		domainName := "atrust-domain-" + suffix
+		ipName := "atrust-ip-" + suffix
+		for _, providerName := range []string{domainName, ipName} {
+			if _, exists := providers[providerName]; exists {
+				return fmt.Errorf("rule provider %q is reserved for aTrust; rename the user-defined provider", providerName)
+			}
+		}
+		atrustProviders := RP.NewAtrustRuleProviders(name)
+		providers[domainName] = atrustProviders.Domain
+		providers[ipName] = atrustProviders.IP
+		if index == 0 {
+			providers["atrust-domain"] = atrustProviders.Domain
+			providers["atrust-ip"] = atrustProviders.IP
+		}
+	}
 	return nil
+}
+
+func atrustProviderSuffix(name string) string {
+	var b strings.Builder
+	for _, r := range name {
+		switch {
+		case r >= 'a' && r <= 'z', r >= 'A' && r <= 'Z',
+			r >= '0' && r <= '9', r == '_', r == '-', r == '.':
+			b.WriteRune(r)
+		default:
+			b.WriteByte('_')
+		}
+	}
+	if b.Len() == 0 {
+		return "node"
+	}
+	return b.String()
 }
 
 func parseSubRules(cfg *RawConfig, proxies map[string]C.Proxy, ruleProviders map[string]P.RuleProvider) (subRules map[string][]C.Rule, err error) {

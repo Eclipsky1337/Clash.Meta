@@ -132,7 +132,20 @@ func TestParseAtrustMultipleNodes(t *testing.T) {
     type: atrust
     server: vpn2.example.com
     state-dir: atrust2`, 1)
-	if _, err := config.Parse([]byte(cfgText)); err == nil || !strings.Contains(err.Error(), "one node") {
-		t.Fatalf("expected single node error, got %v", err)
+	cfg, err := config.Parse([]byte(cfgText))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, name := range []string{
+		"atrust-domain",
+		"atrust-ip",
+		"atrust-domain-atrust",
+		"atrust-ip-atrust",
+		"atrust-domain-atrust2",
+		"atrust-ip-atrust2",
+	} {
+		if cfg.RuleProviders[name] == nil {
+			t.Errorf("missing provider %s", name)
+		}
 	}
 }
