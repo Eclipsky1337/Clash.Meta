@@ -24,15 +24,15 @@ proxies:
     username: user
     state-dir: atrust
 rules:
-  - RULE-SET,atrust-domain,atrust
-  - RULE-SET,atrust-ip,atrust,no-resolve
+  - RULE-SET,atrust-domain-atrust,atrust
+  - RULE-SET,atrust-ip-atrust,atrust,no-resolve
   - MATCH,DIRECT
 dns:
   enable: true
   nameserver:
     - 223.5.5.5
   nameserver-policy:
-    "rule-set:atrust-domain": "atrust://atrust"
+    "rule-set:atrust-domain-atrust": "atrust://atrust"
 `
 
 func TestParseAtrustConfig(t *testing.T) {
@@ -41,10 +41,10 @@ func TestParseAtrustConfig(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, ok := cfg.RuleProviders["atrust-domain"]; !ok {
+	if _, ok := cfg.RuleProviders["atrust-domain-atrust"]; !ok {
 		t.Fatal("missing atrust-domain provider")
 	}
-	if _, ok := cfg.RuleProviders["atrust-ip"]; !ok {
+	if _, ok := cfg.RuleProviders["atrust-ip-atrust"]; !ok {
 		t.Fatal("missing atrust-ip provider")
 	}
 	if len(cfg.Rules) != 3 {
@@ -91,11 +91,11 @@ func TestParseAtrustCachedResources(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if cfg.RuleProviders["atrust-domain"].Count() != 1 {
-		t.Fatalf("cached domain payload count = %d", cfg.RuleProviders["atrust-domain"].Count())
+	if cfg.RuleProviders["atrust-domain-atrust"].Count() != 1 {
+		t.Fatalf("cached domain payload count = %d", cfg.RuleProviders["atrust-domain-atrust"].Count())
 	}
-	if cfg.RuleProviders["atrust-ip"].Count() != 1 {
-		t.Fatalf("cached IP payload count = %d", cfg.RuleProviders["atrust-ip"].Count())
+	if cfg.RuleProviders["atrust-ip-atrust"].Count() != 1 {
+		t.Fatalf("cached IP payload count = %d", cfg.RuleProviders["atrust-ip-atrust"].Count())
 	}
 }
 
@@ -103,7 +103,7 @@ func TestParseAtrustDuplicateProvider(t *testing.T) {
 	C.SetHomeDir(t.TempDir())
 	cfgText := atrustBaseConfig + `
 rule-providers:
-  atrust-domain:
+  atrust-domain-atrust:
     type: inline
     behavior: domain
     payload:
@@ -137,8 +137,6 @@ func TestParseAtrustMultipleNodes(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, name := range []string{
-		"atrust-domain",
-		"atrust-ip",
 		"atrust-domain-atrust",
 		"atrust-ip-atrust",
 		"atrust-domain-atrust2",

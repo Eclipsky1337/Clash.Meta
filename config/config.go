@@ -1088,9 +1088,8 @@ func parseRuleProviders(cfg *RawConfig) (ruleProviders map[string]P.RuleProvider
 // It runs after user providers are parsed and before rules and DNS, which is
 // the only window where RULE-SET and rule-set: nameserver-policy resolve.
 //
-// A single node keeps the historical names. Multiple nodes get one provider
-// pair per node (atrust-domain-<name>/atrust-ip-<name>), plus the historical
-// names as aliases for the first node so existing rules keep working.
+// Every node gets its own provider pair named after the node:
+// atrust-domain-<name> and atrust-ip-<name>.
 func injectAtrustProviders(proxies map[string]C.Proxy, providers map[string]P.RuleProvider) error {
 	var names []string
 	for name, proxy := range proxies {
@@ -1102,20 +1101,9 @@ func injectAtrustProviders(proxies map[string]C.Proxy, providers map[string]P.Ru
 		return nil
 	}
 	sort.Strings(names)
-	for _, reserved := range []string{"atrust-domain", "atrust-ip"} {
-		if _, exists := providers[reserved]; exists {
-			return fmt.Errorf("rule provider %q is reserved for aTrust; rename the user-defined provider", reserved)
-		}
-	}
-	if len(names) == 1 {
-		atrustProviders := RP.NewAtrustRuleProviders(names[0])
-		providers["atrust-domain"] = atrustProviders.Domain
-		providers["atrust-ip"] = atrustProviders.IP
-		return nil
-	}
-	log.Warnln("[aTrust] %d nodes declared; providers follow each node name", len(names))
+	log.Infoln("[aTrust] %d node(s); providers follow each node name", len(names))
 	used := map[string]struct{}{}
-	for index, name := range names {
+	for _, name := range names {
 		suffix := atrustProviderSuffix(name)
 		for {
 			if _, exists := used[suffix]; !exists {
@@ -1134,10 +1122,6 @@ func injectAtrustProviders(proxies map[string]C.Proxy, providers map[string]P.Ru
 		atrustProviders := RP.NewAtrustRuleProviders(name)
 		providers[domainName] = atrustProviders.Domain
 		providers[ipName] = atrustProviders.IP
-		if index == 0 {
-			providers["atrust-domain"] = atrustProviders.Domain
-			providers["atrust-ip"] = atrustProviders.IP
-		}
 	}
 	return nil
 }
