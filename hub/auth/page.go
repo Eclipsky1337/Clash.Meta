@@ -4,31 +4,68 @@ const loginPage = `<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
+<script>
+  (function () {
+    var theme = new URLSearchParams(location.search).get('theme');
+    if (theme === 'light' || theme === 'dark') {
+      document.documentElement.dataset.theme = theme;
+    }
+  })();
+</script>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Sign-in</title>
 <style>
-:root { color-scheme: light dark; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", sans-serif; }
-body { margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center; background: #f2f4f7; color: #1b1f24; }
-.card { width: min(420px, calc(100vw - 32px)); background: #fff; border-radius: 18px; padding: 24px; box-shadow: 0 12px 40px rgba(15, 23, 42, .12); }
+:root {
+  color-scheme: light;
+  --bg: #f2f4f7;
+  --fg: #1b1f24;
+  --card: #ffffff;
+  --muted: #5b6573;
+  --line: #d4d9e1;
+  --input-bg: #ffffff;
+  --accent: #2563eb;
+  --shadow: rgba(15, 23, 42, .12);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", sans-serif;
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #0f1115;
+  --fg: #e8eaed;
+  --card: #181b21;
+  --muted: #9aa4b2;
+  --line: #333a45;
+  --input-bg: #0f1115;
+  --accent: #60a5fa;
+  --shadow: rgba(0, 0, 0, .5);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) {
+    color-scheme: dark;
+    --bg: #0f1115;
+    --fg: #e8eaed;
+    --card: #181b21;
+    --muted: #9aa4b2;
+    --line: #333a45;
+    --input-bg: #0f1115;
+    --accent: #60a5fa;
+    --shadow: rgba(0, 0, 0, .5);
+  }
+}
+body { margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center; background: var(--bg); color: var(--fg); }
+.card { width: min(420px, calc(100vw - 32px)); background: var(--card); border-radius: 18px; padding: 24px; box-shadow: 0 12px 40px var(--shadow); }
 h1 { font-size: 20px; margin: 0 0 8px; }
-p { margin: 0 0 16px; color: #5b6573; line-height: 1.5; }
-label { display: block; font-size: 13px; color: #5b6573; margin: 12px 0 6px; }
-input { width: 100%; box-sizing: border-box; padding: 11px 12px; border: 1px solid #d4d9e1; border-radius: 10px; font-size: 15px; }
-button { width: 100%; margin-top: 18px; padding: 12px; border: 0; border-radius: 10px; background: #2563eb; color: #fff; font-size: 15px; font-weight: 600; cursor: pointer; }
+p { margin: 0 0 16px; color: var(--muted); line-height: 1.5; }
+label { display: block; font-size: 13px; color: var(--muted); margin: 12px 0 6px; }
+input { width: 100%; box-sizing: border-box; padding: 11px 12px; border: 1px solid var(--line); border-radius: 10px; font-size: 15px; background: var(--input-bg); color: var(--fg); }
+button { width: 100%; margin-top: 18px; padding: 12px; border: 0; border-radius: 10px; background: var(--accent); color: #fff; font-size: 15px; font-weight: 600; cursor: pointer; }
 button:disabled { opacity: .55; cursor: default; }
 .captcha-wrap { position: relative; display: inline-block; margin: 8px 0; touch-action: manipulation; }
 .captcha-wrap img { display: block; max-width: 100%; border-radius: 10px; cursor: crosshair; user-select: none; }
 .mark { position: absolute; width: 22px; height: 22px; margin: -11px 0 0 -11px; border-radius: 50%; border: 2px solid #ef4444; color: #ef4444; font-size: 12px; line-height: 18px; text-align: center; font-weight: 700; pointer-events: none; background: rgba(255,255,255,.75); }
-.hint { font-size: 13px; color: #5b6573; margin-top: 4px; }
+.hint { font-size: 13px; color: var(--muted); margin-top: 4px; }
 .error { color: #b91c1c; white-space: pre-wrap; margin-top: 12px; font-size: 14px; }
 .success { color: #15803d; font-size: 16px; margin: 8px 0 0; }
-a { color: #2563eb; }
-@media (prefers-color-scheme: dark) {
-  body { background: #0f1115; color: #e8eaed; }
-  .card { background: #181b21; box-shadow: 0 12px 40px rgba(0,0,0,.5); }
-  p, label, .hint { color: #9aa4b2; }
-  input { background: #0f1115; border-color: #333a45; color: #e8eaed; }
-}
+a { color: var(--accent); }
 </style>
 </head>
 <body>
