@@ -583,6 +583,7 @@ func (c *Client) startRefresh(immediate bool) {
 					c.closeTunnel()
 					return
 				}
+				log.Warnln("[aTrust] %s refresh failed: %v", c.options.Name, err)
 				c.setState(StateReady, err)
 				backoff := interval
 				if backoff > time.Minute {
