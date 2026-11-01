@@ -76,7 +76,9 @@ func NewClient(options Options) (*Client, error) {
 		options.StateDir = "atrust"
 	}
 	if options.RefreshInterval <= 0 {
-		options.RefreshInterval = 30 * time.Minute
+		// A session can be displaced by another device at any time. A minute
+		// keeps the visible state close to reality without much traffic.
+		options.RefreshInterval = time.Minute
 	}
 	if options.SessionTTL <= 0 {
 		options.SessionTTL = 10 * time.Minute
@@ -579,8 +581,7 @@ func (c *Client) startRefresh(immediate bool) {
 			}
 			if err != nil {
 				if errors.Is(err, ErrSessionInvalid) {
-					c.setState(StateExpired, err)
-					c.closeTunnel()
+					c.expireSession(err)
 					return
 				}
 				log.Warnln("[aTrust] %s refresh failed: %v", c.options.Name, err)
@@ -731,6 +732,22 @@ func newConnectionID(deviceID string) string {
 	return fmt.Sprintf("%X-%d", sum, time.Now().UnixMicro())
 }
 
+func (c *Client) expireSession(err error) {
+	if err == nil {
+		err = ErrSessionInvalid
+	}
+	c.mu.Lock()
+	c.state = StateExpired
+	c.lastErr = err
+	c.updatedAt = time.Now()
+	c.persisted.SID = ""
+	c.persisted.Cookies = nil
+	snapshot := *c.persisted
+	c.mu.Unlock()
+	c.closeTunnel()
+	_ = saveState(c.options.statePath(), &snapshot)
+}
+
 func (c *Client) ensureReady() error {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
@@ -843,9 +860,16 @@ func (c *Client) DialContext(ctx context.Context, host string, ip netip.Addr, po
 	}
 	tunnel, err := c.getTunnel()
 	if err != nil {
+		if errors.Is(err, ErrSessionInvalid) {
+			c.expireSession(err)
+		}
 		return nil, err
 	}
-	return tunnel.DialTCP(ctx, target)
+	conn, err := tunnel.DialTCP(ctx, target)
+	if errors.Is(err, ErrSessionInvalid) {
+		c.expireSession(err)
+	}
+	return conn, err
 }
 
 // ListenPacket opens a UDP socket through the L3 tunnel.
@@ -858,9 +882,16 @@ func (c *Client) ListenPacket(ctx context.Context) (net.PacketConn, error) {
 	}
 	tunnel, err := c.getTunnel()
 	if err != nil {
+		if errors.Is(err, ErrSessionInvalid) {
+			c.expireSession(err)
+		}
 		return nil, err
 	}
-	return tunnel.ListenPacket(ctx)
+	conn, err := tunnel.ListenPacket(ctx)
+	if errors.Is(err, ErrSessionInvalid) {
+		c.expireSession(err)
+	}
+	return conn, err
 }
 
 // ExchangeDNS resolves through the aTrust DNS channel. It is called by the
@@ -881,9 +912,16 @@ func (c *Client) ExchangeDNS(ctx context.Context, host string) ([]netip.Addr, er
 	}
 	tunnel, err := c.getTunnel()
 	if err != nil {
+		if errors.Is(err, ErrSessionInvalid) {
+			c.expireSession(err)
+		}
 		return nil, err
 	}
-	return tunnel.ResolveDNS(ctx, host, resources.dnsServers)
+	ips, err := tunnel.ResolveDNS(ctx, host, resources.dnsServers)
+	if errors.Is(err, ErrSessionInvalid) {
+		c.expireSession(err)
+	}
+	return ips, err
 }
 
 func imageSize(data []byte) (int, int) {

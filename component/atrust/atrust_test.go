@@ -118,6 +118,26 @@ func TestStateRoundTrip(t *testing.T) {
 	}
 }
 
+func TestExpireSessionMarksTheProviderExpired(t *testing.T) {
+	client := &Client{
+		state: StateReady,
+		options: Options{
+			Name:     "test",
+			Server:   "vpn.example.com",
+			StateDir: t.TempDir(),
+		},
+		persisted: &persistedState{},
+	}
+	client.expireSession(ErrSessionInvalid)
+	status := client.Status()
+	if status.State != StateExpired {
+		t.Fatalf("state = %q, want %q", status.State, StateExpired)
+	}
+	if status.Error == "" {
+		t.Fatal("expired status did not retain the session error")
+	}
+}
+
 func TestRangeToPrefixes(t *testing.T) {
 	minIP := netip.MustParseAddr("10.0.0.0")
 	maxIP := netip.MustParseAddr("10.0.0.255")
